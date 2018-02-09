@@ -235,7 +235,7 @@ class GoogleCloudStorage(Storage):
         name = self._normalize_name(clean_name(name))
         encoded_name = self._encode_name(name)
         name_to_hash = '{}/{}'.format(self.bucket_name, name)
-        cache_key = hashlib.md5(name_to_hash).hexdigest()
+        cache_key = hashlib.md5(name_to_hash.encode()).hexdigest()
         url = cache.get(cache_key)
         if not url:
             blob = self._get_blob(encoded_name)
