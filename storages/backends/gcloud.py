@@ -1,8 +1,9 @@
+import logging
 import hashlib
 import mimetypes
 from tempfile import SpooledTemporaryFile
 
-from django.core.cache import cache
+from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import File
 from django.core.files.storage import Storage
@@ -19,6 +20,9 @@ try:
 except ImportError:
     raise ImproperlyConfigured("Could not load Google Cloud Storage bindings.\n"
                                "See https://github.com/GoogleCloudPlatform/gcloud-python")
+
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleCloudFile(File):
@@ -94,6 +98,7 @@ class GoogleCloudStorage(Storage):
     # rolled over into a temporary file on disk. Default is 0: Do not roll over.
     max_memory_size = setting('GS_MAX_MEMORY_SIZE', 0)
     url_cache_timeout_secs = setting('GS_URL_CACHE_TIMEOUT_SECS', 86400)
+    cache = caches[setting('GS_CACHE_NAME', 'default')]
 
     def __init__(self, **settings):
         # check if some of the settings we've provided as class attributes
@@ -148,6 +153,7 @@ class GoogleCloudStorage(Storage):
         return smart_str(name, encoding=self.file_name_charset)
 
     def _open(self, name, mode='rb'):
+        logger.warning("Calling open({})".format(name))
         name = self._normalize_name(clean_name(name))
         file_object = GoogleCloudFile(name, mode, self)
         if not file_object.blob:
@@ -170,6 +176,7 @@ class GoogleCloudStorage(Storage):
         self.bucket.delete_blob(self._encode_name(name))
 
     def exists(self, name):
+        logger.warning("Calling exists({})".format(name))
         if not name:  # root element aka the bucket
             try:
                 self.bucket
@@ -215,33 +222,36 @@ class GoogleCloudStorage(Storage):
         return blob
 
     def size(self, name):
+        logger.warning("Calling size({})".format(name))
         name = self._normalize_name(clean_name(name))
         blob = self._get_blob(self._encode_name(name))
         return blob.size
 
     def modified_time(self, name):
+        logger.warning("Calling modified_time({})".format(name))
         name = self._normalize_name(clean_name(name))
         blob = self._get_blob(self._encode_name(name))
         return timezone.make_naive(blob.updated)
 
     def get_modified_time(self, name):
+        logger.warning("Calling get_modified_time({})".format(name))
         name = self._normalize_name(clean_name(name))
         blob = self._get_blob(self._encode_name(name))
         updated = blob.updated
         return updated if setting('USE_TZ') else timezone.make_naive(updated)
 
     def url(self, name):
+        logger.warning("Calling url({})".format(name))
         # Preserve the trailing slash after normalizing the path.
         name = self._normalize_name(clean_name(name))
         encoded_name = self._encode_name(name)
         name_to_hash = '{}/{}'.format(self.bucket_name, name)
         cache_key = hashlib.md5(name_to_hash.encode()).hexdigest()
-        url = cache.get(cache_key)
+        url = self.cache.get(cache_key)
         if not url:
             blob = self._get_blob(encoded_name)
             url = blob.public_url
-            cache.set(cache_key, url, timeout=self.url_cache_timeout_secs,
-                      version=1)
+            self.cache.set(cache_key, url, timeout=self.url_cache_timeout_secs, version=1)
         return url
 
     def get_available_name(self, name, max_length=None):
