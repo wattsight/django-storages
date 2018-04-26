@@ -170,6 +170,7 @@ class GoogleCloudStorage(Storage):
         content.name = cleaned_name
         encoded_name = self._encode_name(name)
         file = GoogleCloudFile(encoded_name, 'rw', self)
+        content.seek(0)
         file.blob.upload_from_file(content, size=content.size,
                                    content_type=file.mime_type,
                                    predefined_acl=self.auto_create_acl)
@@ -258,8 +259,11 @@ class GoogleCloudStorage(Storage):
         cache_key = hashlib.md5(name_to_hash.encode()).hexdigest()
         url = self.cache.get(cache_key)
         if not url:
-            blob = self._get_blob(encoded_name)
-            url = blob.public_url
+            try:
+                blob = self._get_blob(encoded_name)
+                url = blob.public_url
+            except NotFound:
+                url = name
             if self.url_cache_timeout_secs is not None and self.url_cache_timeout_secs >= 600:
                 timeout_jitter = int(((random.random() * 0.2) + 0.9) * self.url_cache_timeout_secs)
             else:
