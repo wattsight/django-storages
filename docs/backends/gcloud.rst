@@ -72,6 +72,10 @@ The default timeout, in seconds, to use for the URL cache. This argument
 defaults to 86,400 seconds (1 day). Passing in None for timeout will cache the
 value forever.
 
+``GS_CACHE_CONTROL`` (optional: default is ``None``)
+
+Sets Cache-Control HTTP header for the file, more about HTTP caching can be found `here <https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching#cache-control>`_
+
 Fields
 ------
 

@@ -92,6 +92,7 @@ class GoogleCloudStorage(Storage):
     auto_create_acl = setting('GS_AUTO_CREATE_ACL', 'projectPrivate')
     file_name_charset = setting('GS_FILE_NAME_CHARSET', 'utf-8')
     file_overwrite = setting('GS_FILE_OVERWRITE', True)
+    cache_control = setting('GS_CACHE_CONTROL', None)
     # The max amount of memory a returned file can take up before being
     # rolled over into a temporary file on disk. Default is 0: Do not roll over.
     max_memory_size = setting('GS_MAX_MEMORY_SIZE', 0)
@@ -171,6 +172,7 @@ class GoogleCloudStorage(Storage):
         encoded_name = self._encode_name(name)
         file = GoogleCloudFile(encoded_name, 'rw', self)
         content.seek(0)
+        file.blob.cache_control = self.cache_control
         file.blob.upload_from_file(content, size=content.size,
                                    content_type=file.mime_type,
                                    predefined_acl=self.auto_create_acl)
