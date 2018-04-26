@@ -1,5 +1,6 @@
 import hashlib
 import mimetypes
+import random
 from tempfile import SpooledTemporaryFile
 
 from django.core.cache import caches
@@ -241,7 +242,11 @@ class GoogleCloudStorage(Storage):
         if not url:
             blob = self._get_blob(encoded_name)
             url = blob.public_url
-            self.cache.set(cache_key, url, timeout=self.url_cache_timeout_secs, version=1)
+            if self.url_cache_timeout_secs is not None and self.url_cache_timeout_secs >= 600:
+                timeout_jitter = int(((random.random() * 0.2) + 0.9) * self.url_cache_timeout_secs)
+            else:
+                timeout_jitter = self.url_cache_timeout_secs
+            self.cache.set(cache_key, url, timeout=timeout_jitter, version=1)
         return url
 
     def get_available_name(self, name, max_length=None):
